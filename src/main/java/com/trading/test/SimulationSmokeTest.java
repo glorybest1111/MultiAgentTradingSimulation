@@ -23,6 +23,8 @@ public class SimulationSmokeTest {
         SimulationConfig config = new SimulationConfig();
         config.ticks = 150;
         config.seed = 7;
+        config.experimentName = "smoketest-main";
+        config.dashboardInterval = 0;
 
         MarketSimulation simulation = new MarketSimulation(config);
         simulation.addAgent(new MomentumTrader());
@@ -38,14 +40,15 @@ public class SimulationSmokeTest {
         check(result.totalVolume > 0, "仿真期间发生了成交");
         check(!Double.isNaN(result.avgSpread), "存在有效买卖价差样本 (做市商提供流动性)");
         check(result.priceVolatility >= 0, "价格波动率计算有效");
+        check(result.decisionsByAgent.size() == 5, "每个 Agent 都产出了可解释决策日志");
 
         for (var stats : result.ranking) {
             check(Double.isFinite(stats.returnRate), stats.name + " 收益率有限: " + String.format("%+.2f%%", stats.returnRate * 100));
         }
 
-        // 做市商前后对比实验（相同 3 个策略，仅做市商开关不同）
+        // 做市商前后对比实验（相同 3 个策略，实验变量仅为是否注册做市商）
         SimulationConfig off = config.copy();
-        off.marketMakerEnabled = false;
+        off.experimentName = "smoketest-without-mm";
         MarketSimulation simOff = new MarketSimulation(off);
         simOff.addAgent(new MomentumTrader());
         simOff.addAgent(new ValueTrader());
@@ -54,7 +57,9 @@ public class SimulationSmokeTest {
         check(resultOff.ranking.size() == 3, "无做市商场景 3 个 Agent 正常完成");
         check(Double.isNaN(resultOff.avgSpread), "无做市商时簿内无价差 (滑点模型提供隐性流动性)");
 
-        MarketSimulation simWithMM = new MarketSimulation(config);
+        SimulationConfig on = config.copy();
+        on.experimentName = "smoketest-with-mm";
+        MarketSimulation simWithMM = new MarketSimulation(on);
         simWithMM.addAgent(new MomentumTrader());
         simWithMM.addAgent(new ValueTrader());
         simWithMM.addAgent(new HighFrequencyTrader());
@@ -63,6 +68,32 @@ public class SimulationSmokeTest {
         check(!Double.isNaN(resultWithMM.avgSpread), "有做市商时存在有效买卖价差");
         check(resultWithMM.totalVolume > resultOff.totalVolume,
                 "加入做市商后成交量提高 (" + resultOff.totalVolume + " -> " + resultWithMM.totalVolume + ")");
+
+        // 情绪开关对照：关闭情绪后行为退化为纯技术面版本，不应崩溃
+        SimulationConfig noSentiment = config.copy();
+        noSentiment.experimentName = "smoketest-no-sentiment";
+        noSentiment.sentimentAffectsStrategies = false;
+        noSentiment.ticks = 60;
+        MarketSimulation simNoSentiment = new MarketSimulation(noSentiment);
+        simNoSentiment.addAgent(new MomentumTrader());
+        simNoSentiment.addAgent(new ValueTrader());
+        simNoSentiment.addAgent(new HighFrequencyTrader());
+        MarketSimulation.Result sentimentOffResult = simNoSentiment.run();
+        check(sentimentOffResult.ranking.size() == 3, "关闭情绪开关后仿真正常完成 (对照组)");
+
+        // 风控：涨跌停与熔断不应导致仿真中断
+        SimulationConfig guarded = config.copy();
+        guarded.experimentName = "smoketest-risk-control";
+        guarded.ticks = 100;
+        guarded.priceLimitPct = 0.02;
+        guarded.circuitBreakerDropPct = 0.02;
+        guarded.circuitBreakerWindow = 5;
+        MarketSimulation simGuarded = new MarketSimulation(guarded);
+        simGuarded.addAgent(new MomentumTrader());
+        simGuarded.addAgent(new MarketMakerAgent());
+        MarketSimulation.Result guardedResult = simGuarded.run();
+        check(guardedResult.finalPrice > 0, "开启风控后仿真仍能跑完");
+        check(guardedResult.rejectedOrders >= 0, "风控拒单计数可用");
 
         System.out.println();
         System.out.printf("测试完成: 通过 %d 个, 失败 %d 个%n", passed, failed);
@@ -86,5 +117,4 @@ public class SimulationSmokeTest {
             System.out.println("[FAIL] " + name);
         }
     }
-
 }

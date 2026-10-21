@@ -14,6 +14,9 @@ public class Decision {
     private final String reason;       // 决策理由（人类可读）
     private final LocalDateTime timestamp;
 
+    /** 决策时的市场价格：由仿真系统在记录日志时回填，用于胜率/画像计算 */
+    private double decisionPrice = Double.NaN;
+
     public Decision(String agentName, Action action, int quantity, double confidence, String reason) {
         this.agentName = agentName;
         this.action = action;
@@ -55,6 +58,15 @@ public class Decision {
 
     public LocalDateTime getTimestamp() {
         return timestamp;
+    }
+
+    /** 回填决策时的市价（由 MarketSimulation 调用） */
+    public void setDecisionPrice(double price) {
+        this.decisionPrice = price;
+    }
+
+    public double getDecisionPrice() {
+        return decisionPrice;
     }
 
     @Override

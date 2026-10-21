@@ -1,10 +1,28 @@
-# IDEA
+# 构建产物
+target/
+out/
+build/
+
+# 运行期产出（决策/成交日志按次运行生成，不应入库）
+data/
+
+# IDE
 .idea/
 *.iml
-out/
+*.ipr
+*.iws
+# VS Code 个人配置忽略，但保留团队共享的编译/运行配置
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.settings/
+.classpath
+.project
 
-# 编译临时文件
-*.class
+# 第三方依赖 jar（体积较大，用 scripts/download-javafx.ps1 重新拉取）
+lib/*.jar
 
-# 仿真输出（决策日志/成交日志，运行时生成）
-data/
+# 系统文件
+.DS_Store
+Thumbs.db

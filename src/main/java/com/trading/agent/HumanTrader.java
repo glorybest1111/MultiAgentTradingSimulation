@@ -6,41 +6,47 @@ import com.trading.model.Order;
 import com.trading.model.OrderType;
 import com.trading.model.Side;
 
-import java.util.Scanner;
-
 /**
- * 人类交易者：控制台交互式下单。
- * 用法：java com.trading.Main --human
- * 每期输入指令，例如：BUY 10 / SELL 5 / HOLD
+ * 人类交易者：把外部输入翻译成订单。
+ *
+ * <p>输入源已抽象为 {@link CommandSource}：控制台用 {@link ScannerCommandSource}，
+ * GUI 可实现自己的非阻塞队列版本。本类不持有任何 Scanner，
+ * 因此可以被 GUI 线程 / Timer 线程安全地驱动。
+ *
+ * <p>用法：java com.trading.Main --human
  */
 public class HumanTrader implements TraderAgent {
 
-    private final Scanner scanner = new Scanner(System.in);
+    private final CommandSource commandSource;
+    private boolean exited;
+
+    public HumanTrader() {
+        this(new ScannerCommandSource());
+    }
+
+    public HumanTrader(CommandSource commandSource) {
+        this.commandSource = commandSource;
+    }
 
     @Override
     public String getName() {
         return "HumanTrader";
     }
 
+    /** 用户已选择退出（GUI/控制台都能用它判断是否需要停止驱动） */
+    public boolean hasExited() {
+        return exited;
+    }
+
     @Override
     public Decision onTick(MarketSnapshot snapshot, TradingApi api) {
-        System.out.printf("[第 %d 期] %s @ %.2f | 现金 %.2f | 持仓 %d (均价 %.2f) | 情绪 %+.2f%n",
-                snapshot.getTick(), snapshot.getSymbol(), snapshot.getPrice(),
-                snapshot.getCash(), snapshot.getPosition(), snapshot.getAvgCost(),
-                snapshot.getMarketMood());
-        if (snapshot.getLatestNews() != null) {
-            System.out.println("  新闻: " + snapshot.getLatestNews());
+        TradeCommand command = commandSource.nextCommand(snapshot);
+        if (command == null) {
+            return Decision.hold(getName(), "manual decision: no input");
         }
-        System.out.print("  指令 (BUY/SELL/HOLD [数量], 如 BUY 10): ");
-
-        String line = scanner.hasNextLine() ? scanner.nextLine().trim() : "HOLD";
-        String[] parts = line.split("\\s+");
-        String command = parts[0].toUpperCase();
-        int quantity = parts.length > 1 ? parseQuantity(parts[1]) : 10;
-
-        switch (command) {
-            case "BUY":
-                quantity = (int) Math.min(quantity, snapshot.getCash() / snapshot.getPrice());
+        switch (command.getKind()) {
+            case BUY: {
+                int quantity = (int) Math.min(command.getQuantity(), snapshot.getCash() / snapshot.getPrice());
                 if (quantity <= 0) {
                     return Decision.hold(getName(), "manual buy failed: insufficient cash");
                 }
@@ -48,8 +54,9 @@ public class HumanTrader implements TraderAgent {
                         snapshot.getPrice(), quantity, getName()));
                 return Decision.trade(getName(), Action.BUY, quantity, 1.0,
                         String.format("manual decision: buy %d shares at market", quantity));
-            case "SELL":
-                quantity = Math.min(quantity, Math.max(0, snapshot.getPosition()));
+            }
+            case SELL: {
+                int quantity = Math.min(command.getQuantity(), Math.max(0, snapshot.getPosition()));
                 if (quantity <= 0) {
                     return Decision.hold(getName(), "manual sell failed: no position");
                 }
@@ -57,17 +64,12 @@ public class HumanTrader implements TraderAgent {
                         snapshot.getPrice(), quantity, getName()));
                 return Decision.trade(getName(), Action.SELL, quantity, 1.0,
                         String.format("manual decision: sell %d shares at market", quantity));
+            }
+            case EXIT:
+                exited = true;
+                return Decision.hold(getName(), "manual decision: exit requested");
             default:
                 return Decision.hold(getName(), "manual decision: hold");
         }
     }
-
-    private int parseQuantity(String text) {
-        try {
-            return Math.max(1, Integer.parseInt(text));
-        } catch (NumberFormatException e) {
-            return 10;
-        }
-    }
-
 }

@@ -12,6 +12,7 @@ public class MarketSnapshot {
     private final int tick;
     private final double price;
     private final double marketMood;     // -1..1 新闻情绪
+    private final boolean sentimentEnabled;  // 情绪是否参与策略决策（可关闭做对照实验）
     private final double bestBid;        // 无买单时 NaN
     private final double bestAsk;        // 无卖单时 NaN
     private final double spread;         // 无价差时 NaN
@@ -25,10 +26,20 @@ public class MarketSnapshot {
                           double bestBid, double bestAsk, double spread,
                           PriceHistory history, double cash, int position, double avgCost,
                           NewsItem latestNews) {
+        this(symbol, tick, price, marketMood, true, bestBid, bestAsk, spread,
+                history, cash, position, avgCost, latestNews);
+    }
+
+    public MarketSnapshot(String symbol, int tick, double price, double marketMood,
+                          boolean sentimentEnabled,
+                          double bestBid, double bestAsk, double spread,
+                          PriceHistory history, double cash, int position, double avgCost,
+                          NewsItem latestNews) {
         this.symbol = symbol;
         this.tick = tick;
         this.price = price;
         this.marketMood = marketMood;
+        this.sentimentEnabled = sentimentEnabled;
         this.bestBid = bestBid;
         this.bestAsk = bestAsk;
         this.spread = spread;
@@ -53,6 +64,23 @@ public class MarketSnapshot {
 
     public double getMarketMood() {
         return marketMood;
+    }
+
+    /**
+     * 供策略使用的情绪信号 [-1,1]。
+     *
+     * <p>与 {@link #getMarketMood()} 的区别：当实验关闭「情绪影响策略」时返回 0，
+     * 使所有策略自动退化为纯技术面版本，无需在每个 Agent 里写开关判断。
+     * 因此关闭情绪即可得到一个干净的对照组（原本只有 Bull/Bear 受情绪影响，
+     * 其余三个策略完全不看新闻，README 的「情绪影响 Agent 决策」并不成立）。
+     */
+    public double getSentimentBias() {
+        return sentimentEnabled ? marketMood : 0.0;
+    }
+
+    /** 策略是否应参考最新新闻（与 getSentimentBias 同步开关） */
+    public NewsItem getSentimentNews() {
+        return sentimentEnabled ? latestNews : null;
     }
 
     public double getBestBid() {

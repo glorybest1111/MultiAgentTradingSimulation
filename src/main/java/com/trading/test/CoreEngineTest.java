@@ -8,6 +8,7 @@ import com.trading.model.OrderType;
 import com.trading.model.Side;
 import com.trading.model.Trade;
 import com.trading.risk.FeeCalculator;
+import com.trading.risk.SlippageEstimator;
 import com.trading.risk.SlippageModel;
 
 import java.util.List;
@@ -227,8 +228,14 @@ public class CoreEngineTest {
         book.addOrder(new Order("AAPL", Side.SELL, OrderType.LIMIT, 100, 100, "T1"));
         book.addOrder(new Order("AAPL", Side.SELL, OrderType.LIMIT, 101, 200, "T2"));
 
-        double avg = SlippageModel.walkBook(book, Side.SELL, 300);
+        double avg = SlippageEstimator.walkBook(book, Side.SELL, 300);
         checkEquals(100.6666666667, avg, 1e-9, "11.1 买 300 股平均成本 100.67 (100股@100 + 200股@101)");
+        check(Double.isNaN(SlippageEstimator.walkBook(book, Side.SELL, 500)),
+                "11.1b 簿深不足且不允许部分成交时返回 NaN (深度 300 < 500)");
+        checkEquals(100.6666666667, SlippageEstimator.walkBook(book, Side.SELL, 500, true), 1e-9,
+                "11.1c 允许部分成交时按实际可成交量计算均价");
+        checkEquals(300, SlippageEstimator.availableDepth(book, Side.SELL), 1e-9,
+                "11.1d 可见深度统计正确 (冰山单只算切片)");
 
         SlippageModel model = new SlippageModel(0.10);
         checkEquals(100.20, model.priceAfterLevels(100, 2, Side.BUY), 1e-9, "11.2 虚拟深度第 2 层买价 100.20");

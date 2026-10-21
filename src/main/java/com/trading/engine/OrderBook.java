@@ -38,7 +38,12 @@ public class OrderBook {
         return Long.compare(a.getOrderId(), b.getOrderId());
     });
 
-    public void addOrder(Order order) {
+    /**
+     * 注意：本类的单个方法均为线程安全，但调用方（{@link MatchingEngine}）
+     * 必须使用同一把锁保护「取最优档 → 成交 → 减仓」的复合操作，
+     * 否则并发下可能出现两笔成交读取到同一笔对手挂单。
+     */
+    public synchronized void addOrder(Order order) {
         if (order.getSide() == Side.BUY) {
             bids.add(order);
         } else {
@@ -47,20 +52,20 @@ public class OrderBook {
     }
 
     /** 撤单，返回是否撤销成功 */
-    public boolean removeOrder(Order order) {
+    public synchronized boolean removeOrder(Order order) {
         return (order.getSide() == Side.BUY ? bids : asks).remove(order);
     }
 
-    public Order getBestBid() {
+    public synchronized Order getBestBid() {
         return bids.peek();
     }
 
-    public Order getBestAsk() {
+    public synchronized Order getBestAsk() {
         return asks.peek();
     }
 
     /** 买卖价差；任一侧为空时返回 NaN */
-    public double spread() {
+    public synchronized double spread() {
         Order bid = bids.peek();
         Order ask = asks.peek();
         if (bid == null || ask == null) {
@@ -70,7 +75,7 @@ public class OrderBook {
     }
 
     /** 某一侧按撮合优先顺序的订单快照（用于滑点估算等） */
-    public List<Order> orderedSnapshot(Side side) {
+    public synchronized List<Order> orderedSnapshot(Side side) {
         PriorityQueue<Order> queue = side == Side.BUY ? bids : asks;
         List<Order> snapshot = new ArrayList<>();
         while (!queue.isEmpty()) {
@@ -81,7 +86,7 @@ public class OrderBook {
     }
 
     /** 某一侧的挂单总量（冰山单只统计可见部分） */
-    public int totalQuantity(Side side) {
+    public synchronized int totalQuantity(Side side) {
         PriorityQueue<Order> queue = side == Side.BUY ? bids : asks;
         int total = 0;
         for (Order order : queue) {
@@ -91,7 +96,7 @@ public class OrderBook {
     }
 
     /** 某交易员的全部挂单 */
-    public List<Order> ordersOf(String traderName) {
+    public synchronized List<Order> ordersOf(String traderName) {
         List<Order> result = new ArrayList<>();
         for (Order order : bids) {
             if (order.getTraderName().equals(traderName)) {

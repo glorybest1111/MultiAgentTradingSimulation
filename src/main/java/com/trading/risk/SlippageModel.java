@@ -1,16 +1,20 @@
 package com.trading.risk;
 
-import com.trading.engine.OrderBook;
-import com.trading.model.Order;
 import com.trading.model.Side;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 滑点模型：订单过大或簿深不足时，实际成交价相对最优价恶化。
- * 示例：市场卖单 100 股 @100 + 200 股 @101，买入 300 股的平均成本 = 100.67（真实市场行为）。
+ * 滑点模型（撮合路径专用）：订单过大或簿深不足时，实际成交价相对最优价恶化。
  *
- * 虚拟流动性：订单簿被吃空后，市价单可进入虚拟深度——
+ * <p>职责边界：本类只负责撮合时「订单簿被吃空之后」的<b>虚拟流动性</b>定价，
+ * 由 {@link com.trading.engine.MatchingEngine} 按层逐笔调用。
+ *
+ * <p>「按订单簿层级行走算均价」属于事前估算，已迁移至 {@link SlippageEstimator}，
+ * 不再放在撮合路径的类里，避免误解成交口径。
+ *
+ * <p>虚拟流动性：订单簿被吃空后，市价单可进入虚拟深度——
  * 共 maxLevels 层、每层 depthPerLevel 股，价格逐层恶化 perLevel；
  * 虚拟深度耗尽后市价单剩余部分取消（模拟真实市场中流动性不足导致的部分成交）。
  */
@@ -59,30 +63,13 @@ public class SlippageModel {
         return depthPerLevel - usedQuantity % depthPerLevel;
     }
 
-    /**
-     * 按订单簿层级行走，计算吃掉 quantity 数量挂单的平均成交价。
-     *
-     * @param book        订单簿
-     * @param restingSide 被吃的一侧（买挂单填 Side.BUY，卖挂单填 Side.SELL）
-     * @param quantity    主动方数量
-     * @return 平均成交价；簿为空时返回 NaN
-     */
-    public static double walkBook(OrderBook book, Side restingSide, int quantity) {
-        List<Order> levels = book.orderedSnapshot(restingSide);
-        double totalValue = 0;
-        int filled = 0;
-        for (Order level : levels) {
-            if (filled >= quantity) {
-                break;
-            }
-            int take = Math.min(level.effectiveQuantity(), quantity - filled);
-            totalValue += level.getPrice() * take;
-            filled += take;
+    /** 各虚拟层的价格阶梯（用于 GUI 展示隐藏流动性成本） */
+    public List<Double> levelPrices(double basePrice, Side side) {
+        List<Double> prices = new ArrayList<>();
+        for (int i = 1; i <= maxLevels; i++) {
+            prices.add(priceAfterLevels(basePrice, i, side));
         }
-        if (filled == 0) {
-            return Double.NaN;
-        }
-        return totalValue / filled;
+        return prices;
     }
 
     public double getPerLevel() {

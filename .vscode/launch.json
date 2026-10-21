@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Run Main --gui",
+            "request": "launch",
+            "mainClass": "com.trading.Main",
+            "args": ["--gui"]
+        }
+    ]
+}

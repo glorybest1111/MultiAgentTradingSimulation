@@ -1,0 +1,18 @@
+{
+    // 项目改为由 Maven 管理：源码根、依赖、输出目录全部交给 pom.xml。
+    // 之前同时存在 pom.xml 且 java.import.maven.enabled=false 时，
+    // sourcePaths / referencedLibraries / outputPath 这些 unmanaged 配置全部失效，
+    // 结果没有任何导入器接管项目，JDT 不产出 class，F5 才会报 ClassNotFoundException。
+    "java.import.maven.enabled": true,
+    "java.import.gradle.enabled": true,
+
+    // 语言服务器与 Maven 编译都要求 JDK 21+。系统 PATH 上的默认是 JDK 1.8，
+    // 会在 <release>25</release> 上直接失败，这里直接复用 VS Code Java 扩展自带的 JDK 25。
+    "java.jdt.ls.java.home": "C:\\Users\\gr1na\\.vscode\\extensions\\redhat.java-1.58.0-win32-x64\\jre\\25.0.4.1-win32-x86_64",
+
+    // 源码是 UTF-8，显式指定可避免 Windows 平台默认 GBK 带来的解析问题
+    "java.project.encoding": "UTF-8",
+
+    // 关闭额外的空值分析告警
+    "java.compile.nullAnalysis.mode": "disabled"
+}
