@@ -6,7 +6,46 @@
             "name": "Run Main --gui",
             "request": "launch",
             "mainClass": "com.trading.Main",
-            "args": ["--gui"]
+            "args": ["--gui"],
+            "preLaunchTask": "mvn compile",
+            "vmArgs": "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 --enable-native-access=ALL-UNNAMED",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "Run Main",
+            "request": "launch",
+            "mainClass": "com.trading.Main",
+            "preLaunchTask": "mvn compile",
+            "vmArgs": "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "Run CoreEngineTest",
+            "request": "launch",
+            "mainClass": "com.trading.test.CoreEngineTest",
+            "preLaunchTask": "mvn compile",
+            "vmArgs": "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "Run SimulationSmokeTest",
+            "request": "launch",
+            "mainClass": "com.trading.test.SimulationSmokeTest",
+            "preLaunchTask": "mvn compile",
+            "vmArgs": "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "java",
+            "name": "Run InnovationDemoTest",
+            "request": "launch",
+            "mainClass": "com.trading.test.InnovationDemoTest",
+            "preLaunchTask": "mvn compile",
+            "vmArgs": "-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8",
+            "console": "integratedTerminal"
         }
     ]
 }

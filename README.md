@@ -44,11 +44,11 @@ Java 课程项目。本项目不仅是股票交易模拟器，而是一个结合
 
 ### 前置条件
 
-| 项 | 要求 | 本机现状 |
-| --- | --- | --- |
-| JDK | **25 及以上**（项目以 Java 25 编译并运行） | PATH 里的 `java -version` 是 **1.8.0_301，太旧**，必须显式指定 JDK 目录 |
-| Maven | 可选 | **未安装**，所以下文以 `javac/java` 直接编译为主 |
-| JavaFX | 仅 GUI 需要 | 需执行一次下面的下载脚本，jar 落在 `lib/` |
+| 项 | 要求 |
+| --- | --- |
+| JDK | **25 及以上**（项目以 Java 25 编译并运行） |
+| Maven | 可选。不安装也能用 `scripts\run.ps1` 或直接 `javac/java` 编译运行 |
+| JavaFX | 仅 GUI 需要，执行一次下面的下载脚本即可，jar 落在 `lib/` |
 
 ### 步骤 0：下载 JavaFX 依赖（只需一次）
 
@@ -60,13 +60,13 @@ Java 课程项目。本项目不仅是股票交易模拟器，而是一个结合
 脚本会把 `javafx-base / javafx-graphics / javafx-controls`（含 Windows 平台 native）共 6 个 jar 下载到 `lib/`。
 `lib/*.jar` 已在 `.gitignore` 中忽略，换机器时重新执行脚本即可。
 
-### 编码问题（Windows 必看）
+### 编码问题（Windows）
 
 Windows 系统 ANSI 代码页是 **GB2312**。当 `java` 的 stdout 被管道/重定向时，JVM 会用
 `native.encoding`（GB2312）输出字节，而终端按 UTF-8 解码 → **中文全乱码**。
 
-> ⚠️ 常见的 `-Dfile.encoding=UTF-8` **对 stdout 无效**（已实测：加与不加输出的都是 GB2312 字节）。
-> 必须显式指定 `-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8`（JDK 19+）。
+> 注意 `-Dfile.encoding=UTF-8` 对 stdout 无效，必须显式指定
+> `-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8`（JDK 19+）。
 
 ### 方式一：`scripts\run.ps1`（推荐，一条命令搞定乱码 + JDK + 编码）
 
@@ -96,17 +96,17 @@ Windows 系统 ANSI 代码页是 **GB2312**。当 `java` 的 stdout 被管道/�
 .\scripts\run.ps1 main -Log
 ```
 
-脚本行为：自动探测 **JDK ≥ 25**（会跳过 PATH 里的 1.8，找到 VS Code 内置的 Temurin-25）、
-把控制台切到 `chcp 65001`、给 JVM 加上 `-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8`。
-若本机没有任何 JDK 25+：`.\scripts\run.ps1 -Jdk 'C:\Program Files\Java\jdk-25'`。
+脚本行为：自动探测 **JDK ≥ 25**、把控制台切到 `chcp 65001`、
+给 JVM 加上 `-Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8`。
+若自动探测不到，可用 `-Jdk` 显式指定：`.\scripts\run.ps1 -Jdk 'C:\Program Files\Java\jdk-25'`。
 
 ### 方式二：PowerShell + 原生 javac（想手动控制时用）
 
 把下面整段粘到 PowerShell（在项目根目录执行）：
 
 ```powershell
-# 0) 指定 JDK（示例用 VS Code 自带的 Temurin-25）
-$JDK = "C:\Users\gr1na\.vscode\extensions\redhat.java-1.58.0-win32-x64\jre\25.0.4.1-win32-x86_64"
+# 0) 指定 JDK 25 安装目录
+$JDK = "C:\Program Files\Java\jdk-25"
 
 # 依赖 classpath（必须先执行过 scripts\download-javafx.ps1）
 $CP = (Get-ChildItem lib -Filter *.jar | ForEach-Object { $_.FullName }) -join ';'
@@ -139,11 +139,11 @@ $JVMPARAM = "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8", "-Dstderr.encodi
 
 ### 方式三：启动 JavaFX 图形界面（或 `.\scripts\run.ps1 gui`）
 
-> ⚠️ JavaFX 应用**必须用 `--module-path` 启动**。只用 `-cp` 会报
-> `缺少 JavaFX 运行时组件，需要使用该组件来运行此应用程序`。
+> 建议用 `--module-path` 启动 JavaFX 应用。若只用 `-cp`，JVM 会输出
+> `Unsupported JavaFX configuration: classes were loaded from 'unnamed module'` 警告。
 
 ```powershell
-$JDK = "C:\Users\gr1na\.vscode\extensions\redhat.java-1.58.0-win32-x64\jre\25.0.4.1-win32-x86_64"
+$JDK = "C:\Program Files\Java\jdk-25"
 $MP  = (Get-ChildItem lib -Filter *.jar | ForEach-Object { $_.FullName }) -join ';'
 
 & "$JDK\bin\java.exe" "-Dfile.encoding=UTF-8" "-Dstdout.encoding=UTF-8" "-Dstderr.encoding=UTF-8" `
@@ -154,12 +154,13 @@ $MP  = (Get-ChildItem lib -Filter *.jar | ForEach-Object { $_.FullName }) -join 
 
 （`--enable-native-access` 用来消除 JDK 24+ 的 native access 警告。）
 
-### 方式四：VS Code（已配置好，开箱即用）
+### 方式四：VS Code
 
-仓库已提供 `.vscode/settings.json`（把 `lib/**/*.jar` 加入工程 classpath，自动消除编辑器红叉）
-和 `.vscode/launch.json`（可直接 Run Main）。打开项目 → Reload Window → 左侧「运行和调试」选 **Run Main**。
+仓库已提供 `.vscode/settings.json`（Maven 项目模型，依赖由 `pom.xml` 解析）与
+`.vscode/launch.json`（5 个启动配置：三个实验 / 图形界面 / 三组测试）。
+打开项目 → Reload Window → 左侧「运行和调试」选择对应配置即可。
 
-### 方式五：Maven（需先自行安装 Maven）
+### 方式五：Maven
 
 ```bash
 mvn -q clean compile
@@ -318,7 +319,7 @@ flowchart TD
 
 ## 实验设计
 
-> 以下数值均由本机实际运行生成（JDK 25 + 当前代码 + seed=42），固定随机种子因此完全可复现。
+> 以下数值由 JDK 25 + 当前代码 + seed=42 实际运行生成，固定随机种子因此完全可复现。
 > 复现命令见「快速开始 · 方式一」第 2 步。
 
 ### 实验 1：AI 策略竞赛（300 期，初始资金 $100,000，seed=42）
@@ -390,7 +391,7 @@ flowchart TD
 | `InnovationDemoTest` | 涨跌停 / 熔断 / 情绪分析插拔 / LLM 决策协议 / 用户画像标签 / AI 自动撤单 | **31 通过 / 0 失败** |
 
 构建基线：`javac -encoding UTF-8 -Xlint:all` 全量编译 **75 个源文件 → 85 个 class，0 error、0 warning**；
-JavaFX GUI 已实测可正常启动（`--module-path` 方式）。
+JavaFX GUI 通过 `--module-path` 方式启动。
 
 ---
 
